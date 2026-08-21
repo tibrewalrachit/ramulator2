@@ -5,9 +5,10 @@
 # Regenerate:   python -m ramulator codegen
 ###############################################################################
 from .ch_ra_ba_ro_co import ChRaBaRoCo
+from .fabrik_stream import FabrikStream
 from .mop4_clxor import MOP4CLXOR
 from .pass_through_addr_mapper import PassThroughAddrMapper
 from .rit_addr_mapper import RITAddrMapper
 from .ro_ba_ra_co_ch import RoBaRaCoCh
 
-__all__ = ['ChRaBaRoCo', 'MOP4CLXOR', 'PassThroughAddrMapper', 'RITAddrMapper', 'RoBaRaCoCh']
+__all__ = ['ChRaBaRoCo', 'FabrikStream', 'MOP4CLXOR', 'PassThroughAddrMapper', 'RITAddrMapper', 'RoBaRaCoCh']

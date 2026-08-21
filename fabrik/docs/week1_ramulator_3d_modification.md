@@ -222,15 +222,40 @@ Plugins see every issued command, so this needs no controller changes.
   generated streams have the row-locality the Fabrik design depends on.
 * `fabrik/tests/test_analytical.py` — 9 checks, all passing.
 
-## 4. Week-2 task list (in implementation order)
+## 4. Week-2/3 status (all implemented on this branch)
 
-1. `python/ramulator/dram/fabrik3d.py` (+ codegen) with 2/3/4-bank org
-   presets and 500 MHz–1 GHz timing presets.
-2. `FabrikAddressMapper` (`Ro-Ba-Co`, column LSBs, bank rotation).
-3. `Fabrik3DController` = `GenericDDR` clone with short queues; stream
-   plugin afterwards.
-4. experiment_001: 16-channel slice frequency sweep (500 MHz–1 GHz),
-   target: per-channel BW ≈ `128 B / (nCCD·tCK)` on expert streams, and a
-   card-scaled curve passing through ~105 TB/s at 700 MHz for the
-   Raptor-like configuration; wrong by >2× ⇒ the model is broken *before*
-   anything Fabrik-specific is built on it.
+1. ~~`python/ramulator/dram/fabrik3d.py` (+ codegen)~~ — **done**, with
+   1/2/3/4-bank org presets and 500 MHz–1 GHz timing presets.
+2. ~~`FabrikAddressMapper`~~ — **done** as `FabrikStream`
+   (`addr_mapper/impl/fabrik_stream.cpp`): Row-Bank-Column mixed-radix,
+   handles the non-power-of-2 3-bank config.
+3. A separate `Fabrik3DController` turned out to be unnecessary —
+   `GenericDDR` is fully spec-agnostic and drives Fabrik3D as-is. The
+   genuinely new mechanism landed as the `StreamAhead` scheduler
+   (`scheduler/impl/fabrik_stream_scheduler.cpp`): stock FRFCFS starves
+   row commands behind always-ready row-hit reads (~73% of peak on a pure
+   stream); StreamAhead issues ready ACT/PRE to hit-free banks ahead of
+   the stream (~89%, against a 94.1% command-slot ceiling).
+4. ~~experiment_001~~ — **done** (`fabrik/experiments/
+   exp001_fabrik_slice_sweep.py`). Measured, per channel, 3 banks:
+   79.7 GB/s at 700 MHz = 89% of the `128 B/(nCCD·tCK)` peak, linear in
+   frequency; ~105 TB/s ≙ ~1317 channels (~5.1 × 256-channel chiplets).
+   Bank sweep: 1 bank 54%, ≥2 banks 89% — banks exist to hide row
+   turnaround, and two suffice once the scheduler preps one row ahead.
+   The calibration gate asserts ≥85% of analytical peak at every
+   frequency. (The first version of this experiment read 6.2% utilization
+   and the gate caught it: the LoadStoreTrace frontend issues at most one
+   request/cycle into the whole memory system, so a 16-channel sim under
+   one trace frontend measures the frontend. Channels share nothing, so
+   one channel is the correct cycle-accurate unit; slice/chiplet/card
+   scale linearly by construction.)
+
+## 5. Next (Week 4+)
+
+* Route the analytical model's *decode-step* traces (expert streams + KV
+  walks + routing draws) through a Fabrik3D slice instead of the pure
+  stream microbenchmark, and compare against the roofline prediction.
+* Library-mode integration: TensorEngine/slice model calling
+  `memory_system->send(req, callback)` via the `External` frontend.
+* Energy plugin (`controller/plugin/`) with pJ/access + pJ/bit calibrated
+  to Raptor's ~0.4 pJ/bit vertical I/O.

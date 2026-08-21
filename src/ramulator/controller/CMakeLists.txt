@@ -8,6 +8,7 @@ target_sources(
 
   scheduler/i_scheduler.h
   scheduler/impl/frfcfs.cpp
+  scheduler/impl/fabrik_stream_scheduler.cpp
   scheduler/impl/frfcfs_rowhit.cpp
 
   refresh/i_refresh_manager.h
@@ -25,6 +26,7 @@ target_sources(
   addr_mapper/addr_mapper_base.cpp
   addr_mapper/impl/ch_ra_ba_ro_co.cpp
   addr_mapper/impl/ro_ba_ra_co_ch.cpp
+  addr_mapper/impl/fabrik_stream.cpp
   addr_mapper/impl/mop4clxor.cpp
   addr_mapper/impl/passthrough_addr_mapper.cpp
   addr_mapper/impl/rit_addr_mapper.h

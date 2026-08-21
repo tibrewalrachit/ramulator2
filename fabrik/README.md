@@ -10,6 +10,10 @@ Ramulator 2.1. Current contents cover the first two steps of the plan:
   interfaces/controllers and the concrete plan for the `Fabrik3D`
   3D-stacked memory organization; `experiments/exp000_trace_smoke.py` runs
   the analytical model's trace through cycle-accurate Ramulator end to end.
+* **Weeks 2–3** — the `Fabrik3D` organization itself, implemented in
+  Ramulator (see "Fabrik3D in Ramulator" below), plus
+  `experiments/exp001_fabrik_slice_sweep.py`: the frequency / bank-count
+  calibration sweep.
 
 ## Quickstart
 
@@ -57,6 +61,37 @@ Key structural facts the simulator work must respect:
 `exp000` result (toy model trace, one stock HBM3 pseudo-channel): 25.23 of
 25.6 GB/s peak, 87% row-buffer hits — the generated expert streams have the
 row locality the Fabrik3D design depends on.
+
+## Fabrik3D in Ramulator
+
+Three new components implement the 3D-stacked, logic-on-DRAM organization
+(background in `docs/week1_ramulator_3d_modification.md`):
+
+* `python/ramulator/dram/fabrik3d.py` — the `Fabrik3D` DRAM standard
+  (codegen emits `src/ramulator/dram/impl/Fabrik3D.cpp`):
+  `Channel -> Bank -> Row -> Column`, 1/2/3/4-bank org presets, one 128-B
+  flit per column command (`data_payload_bytes = 128`, `nBL = 1`), `tCK` =
+  the DRAM core clock with timing presets named `Fabrik3D_500MHz` ...
+  `Fabrik3D_1000MHz`, bank-level array timings kept at conventional DRAM
+  values, shared-bus constraints (tFAW, bank-group tRRD tiers) removed,
+  per-bank refresh only.
+* `src/ramulator/controller/addr_mapper/impl/fabrik_stream.cpp`
+  (`FabrikStream`) — Row-Bank-Column mixed-radix mapping (3 banks is not a
+  power of 2): sequential flits walk an open row's columns, row crossings
+  rotate banks so the next ACT overlaps the current column walk.
+* `src/ramulator/controller/scheduler/impl/fabrik_stream_scheduler.cpp`
+  (`StreamAhead`) — the stream-blocking scheduler: issues timing-ready
+  ACT/PRE to banks with no pending row-hits ahead of the stream. Without
+  it, FRFCFS starves row commands behind always-ready row-hit reads and a
+  streaming channel sits at ~73% of peak; with it, ~89% (the shared
+  command slot's ceiling is 94.1%, per-bank refresh takes ~2.5%).
+
+`exp001` results (200k-flit stream per channel, 3 banks): 79.7 GB/s per
+channel at 700 MHz (89% of the 89.6 GB/s analytical peak), scaling
+linearly 500 MHz -> 1 GHz; a ~105 TB/s Raptor-like card corresponds to
+~1317 such channels (~5.1 chiplets of 256). The bank sweep quantifies the
+design choice: 1 bank = 54% of peak (row turnaround exposed), 2+ banks =
+89% (hidden); extra banks beyond 2 buy refresh margin, not bandwidth.
 
 ## Layout
 
